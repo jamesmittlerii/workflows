@@ -116,7 +116,7 @@ jobs:
 #    if: false
     needs: build
     name: Test on ${{ matrix.device }}
-    runs-on: macos-latest
+    runs-on: self-hosted
 #    timeout-minutes: 30
     strategy:
       matrix:
