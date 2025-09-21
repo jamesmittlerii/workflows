@@ -5,10 +5,28 @@ permissions:
       pull-requests: write
 
 on:
-  push:
-    branches: [ "**" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_call:
+    secrets:
+      PAT_TOKEN:
+        required: true
+      FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD:
+        required: true
+      FASTLANE_APPLE_APPLICATION_ID:
+        required: true
+      APP_STORE_CONNECT_API_KEY_ISSUER_ID:
+        required: true
+      APP_STORE_CONNECT_API_KEY_KEY_CONTENT:
+        required: true
+      APP_STORE_CONNECT_API_KEY_KEY_ID:
+        required: true
+      MATCH_GIT_BASIC_AUTHORIZATION:
+        required: true
+      MATCH_PASSWORD:
+        required: true
+      P12_BASE64_CERTIFICATE:
+        required: true
+      P12_PASSWORD:
+        required: true
 
 jobs:
 
