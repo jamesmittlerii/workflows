@@ -12,6 +12,8 @@ on:
         required: true
       WIF_PROVIDER:
         required: true
+      PAT_TOKEN:
+        required: true
 
 jobs:
 
@@ -25,8 +27,12 @@ jobs:
 
     steps:
 
-      - name: Checkout repository for Google
+      name: Checkout repository
         uses: actions/checkout@v4 # Checkout the repository code
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }} # Required for private submodules
 
       - name: Extract project ID from secret
         id: extract
@@ -60,29 +66,12 @@ jobs:
         with:
           export_to_environment: true
           secrets: |
-            PAT_TOKEN: projects/${{ steps.extract.outputs.project_id }}/secrets/PAT_TOKEN/versions/latest
             FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD/versions/latest
             APP_STORE_CONNECT_API_KEY_ISSUER_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_ISSUER_ID/versions/latest
             APP_STORE_CONNECT_API_KEY_KEY: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY/versions/latest
             APP_STORE_CONNECT_API_KEY_KEY_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY_ID/versions/latest
             MATCH_GIT_BASIC_AUTHORIZATION: projects/${{ steps.extract.outputs.project_id }}/secrets/MATCH_GIT_BASIC_AUTHORIZATION/versions/latest
             MATCH_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/MATCH_PASSWORD/versions/latest
-
-      - name: Use secrets
-        run: |
-          env
-          echo "My secret value: ${{ steps.get-secrets.outputs.PAT_TOKEN }}"
-          echo -n "PAT TOKEN from steps ${{ steps.get-secrets.outputs.PAT_TOKEN }}" | sed 's/./& /g'
-          echo -n "PAT TOKEN from env $PAT_TOKEN" | sed 's/./& /g'
-
-
-
-      - name: Checkout repository
-        uses: actions/checkout@v4 # Checkout the repository code
-        with:
-          submodules: 'recursive'
-          fetch-depth: 0
-          token: ${{ steps.get-secrets.outputs.PAT_TOKEN}} # Required for private submodules
 
 
       - name: Set up Ruby
