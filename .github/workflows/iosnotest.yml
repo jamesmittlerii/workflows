@@ -58,6 +58,7 @@ jobs:
       - name: Get secrets from Secret Manager
         uses: google-github-actions/get-secretmanager-secrets@v2
         with:
+          export_to_environment: true
           secrets: |
             PAT_TOKEN: projects/${{ steps.extract.outputs.project_id }}/secrets/PAT_TOKEN/versions/latest
             FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD/versions/latest
@@ -69,8 +70,8 @@ jobs:
 
       - name: Use secrets
         run: |
-          echo "My secret value: ${{ steps.get-secrets.outputs.MY_SECRET }}"
-          echo "Another secret value: ${{ steps.get-secrets.outputs.ANOTHER_SECRET }}"
+          env
+          echo "My secret value: ${{ steps.get-secrets.outputs.PAT_TOKEN }}"
 
 
 
