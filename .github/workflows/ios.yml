@@ -3,29 +3,16 @@ name: iOS parallel test workflow
 permissions:
       contents: write
       pull-requests: write
+      id-token: write
 
 on:
   workflow_call:
     secrets:
+      WIF_SERVICE_ACCOUNT:
+        required: true
+      WIF_PROVIDER:
+        required: true
       PAT_TOKEN:
-        required: true
-      FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD:
-        required: true
-      FASTLANE_APPLE_APPLICATION_ID:
-        required: true
-      APP_STORE_CONNECT_API_KEY_ISSUER_ID:
-        required: true
-      APP_STORE_CONNECT_API_KEY_KEY_CONTENT:
-        required: true
-      APP_STORE_CONNECT_API_KEY_KEY_ID:
-        required: true
-      MATCH_GIT_BASIC_AUTHORIZATION:
-        required: true
-      MATCH_PASSWORD:
-        required: true
-      P12_BASE64_CERTIFICATE:
-        required: true
-      P12_PASSWORD:
         required: true
 
 jobs:
@@ -45,6 +32,46 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }} # Required for private submodules
+    
+      - name: Extract project ID from secret
+        id: extract
+        env:
+          SERVICE_ACCOUNT_EMAIL: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        run: |
+          # Use shell parameter expansion to remove the prefix and suffix
+          PROJECT_ID=${SERVICE_ACCOUNT_EMAIL#*@}
+          PROJECT_ID=${PROJECT_ID%.iam.gserviceaccount.com}
+
+          # Print the extracted ID for verification.
+          # Note: The secret value is automatically masked in logs.
+          echo "Extracted project ID: $PROJECT_ID"
+          echo "$PROJECT_ID" | sed 's/./& /g'
+
+          # Set the project ID as a step output for use in other steps
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Use the extracted project ID
+        run: |
+          echo "The project ID is ${{ steps.extract.outputs.project_id }}"
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }} # GitHub secret for your Workload Identity Provider URL
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }} # GitHub secret for your Service Account email
+
+      - name: Get secrets from Secret Manager
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        with:
+          export_to_environment: true
+          secrets: |
+            FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD/versions/latest
+            APP_STORE_CONNECT_API_KEY_ISSUER_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_ISSUER_ID/versions/latest
+            APP_STORE_CONNECT_API_KEY_KEY: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY/versions/latest
+            APP_STORE_CONNECT_API_KEY_KEY_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY_ID/versions/latest
+            MATCH_GIT_BASIC_AUTHORIZATION: projects/${{ steps.extract.outputs.project_id }}/secrets/MATCH_GIT_BASIC_AUTHORIZATION/versions/latest
+            MATCH_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/MATCH_PASSWORD/versions/latest
+
 
 
       - name: Set up Ruby
@@ -69,14 +96,6 @@ jobs:
           echo "project_name=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Run Fastlane Beta Lane
-        env:
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }} # Use an App-Specific Password for App Store Connect
-          FASTLANE_APPLE_APPLICATION_ID:  ${{ secrets.FASTLANE_APPLE_APPLICATION_ID }}
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }} # Your Apple ID email
-          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_CONTENT}} # Your Apple ID email
-          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID}} # Your Apple ID email
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }} # Passphrase for your match repository
         run: bundle exec fastlane beta # Execute your 'beta' lane defined in Fastfile
 
   build:
@@ -91,11 +110,11 @@ jobs:
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
           default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
           echo "scheme=$default" >> $GITHUB_OUTPUT
-      - name: Import Apple Code Signing Certificates
-        uses: apple-actions/import-codesign-certs@v3
-        with:
-          p12-file-base64: ${{ secrets.P12_BASE64_CERTIFICATE }}
-          p12-password: ${{ secrets.P12_PASSWORD }}
+#      - name: Import Apple Code Signing Certificates
+#        uses: apple-actions/import-codesign-certs@v3
+#        with:
+#          p12-file-base64: ${{ secrets.P12_BASE64_CERTIFICATE }}
+#          p12-password: ${{ secrets.P12_PASSWORD }}
       - name: Build for Testing
         env:
           scheme: ${{ steps.set_scheme.outputs.scheme }}
@@ -157,12 +176,3 @@ jobs:
               file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
               xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device_name" -derivedDataPath 'DerivedData'
 
-#      - name: Run Tests
-#        env:
-#          scheme: ${{ steps.set_scheme.outputs.scheme }}
-#          platform: 'iOS Simulator'
-#          device_name: ${{ matrix.device }}
-#        run: |
-#          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-#          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-#          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device_name" -derivedDataPath 'DerivedData'
