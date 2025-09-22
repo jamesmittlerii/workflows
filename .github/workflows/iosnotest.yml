@@ -61,7 +61,6 @@ jobs:
           secrets: |
             PAT_TOKEN: projects/${{ steps.extract.outputs.project_id }}/secrets/PAT_TOKEN/versions/latest
             FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD/versions/latest
-            FASTLANE_APPLE_APPLICATION_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_ID/versions/latest
             APP_STORE_CONNECT_API_KEY_ISSUER_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_ISSUER_ID/versions/latest
             APP_STORE_CONNECT_API_KEY_KEY: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY/versions/latest
             APP_STORE_CONNECT_API_KEY_KEY_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY_ID/versions/latest
@@ -107,7 +106,6 @@ jobs:
       - name: Run Fastlane Beta Lane
         env:
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ steps.get-secrets.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }} # Use an App-Specific Password for App Store Connect
-          FASTLANE_APPLE_APPLICATION_ID:  ${{ steps.get-secrets.outputs.FASTLANE_APPLE_APPLICATION_ID }}
           APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_ISSUER_ID }} # Your Apple ID email
           APP_STORE_CONNECT_API_KEY_KEY: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_CONTENT}} # Your Apple ID email
           APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}} # Your Apple ID email
