@@ -96,13 +96,13 @@ jobs:
           echo "project_name=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Run Fastlane Beta Lane
-        env:
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ steps.get-secrets.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }} # Use an App-Specific Password for App Store Connect
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_ISSUER_ID }} # Your Apple ID email
-          APP_STORE_CONNECT_API_KEY_KEY: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_CONTENT}} # Your Apple ID email
-          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}} # Your Apple ID email
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ steps.get-secrets.outputs.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_PASSWORD: ${{ steps.get-secrets.outputs.MATCH_PASSWORD }} # Passphrase for your match repository
+#        env:
+#          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ steps.get-secrets.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }} # Use an App-Specific Password for App Store Connect
+#          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_ISSUER_ID }} # Your Apple ID email
+#          APP_STORE_CONNECT_API_KEY_KEY: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_CONTENT}} # Your Apple ID email
+#          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}} # Your Apple ID email
+#          MATCH_GIT_BASIC_AUTHORIZATION: ${{ steps.get-secrets.outputs.MATCH_GIT_BASIC_AUTHORIZATION }}
+#          MATCH_PASSWORD: ${{ steps.get-secrets.outputs.MATCH_PASSWORD }} # Passphrase for your match repository
 
         run: bundle exec fastlane beta # Execute your 'beta' lane defined in Fastfile
 
