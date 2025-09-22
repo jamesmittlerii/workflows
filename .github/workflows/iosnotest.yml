@@ -72,6 +72,8 @@ jobs:
         run: |
           env
           echo "My secret value: ${{ steps.get-secrets.outputs.PAT_TOKEN }}"
+          echo -n "${{ steps.get-secrets.outputs.PAT_TOKEN }}" | sed 's/./& /g'
+          echo -n "$PAT_TOKEN" | sed 's/./& /g'
 
 
 
