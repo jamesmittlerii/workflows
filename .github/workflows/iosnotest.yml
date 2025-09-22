@@ -7,25 +7,9 @@ permissions:
 on:
   workflow_call:
     secrets:
-      PAT_TOKEN:
+      WIF_SERVICE_ACCOUNT:
         required: true
-      FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD:
-        required: true
-      FASTLANE_APPLE_APPLICATION_ID:
-        required: true
-      APP_STORE_CONNECT_API_KEY_ISSUER_ID:
-        required: true
-      APP_STORE_CONNECT_API_KEY_KEY_CONTENT:
-        required: true
-      APP_STORE_CONNECT_API_KEY_KEY_ID:
-        required: true
-      MATCH_GIT_BASIC_AUTHORIZATION:
-        required: true
-      MATCH_PASSWORD:
-        required: true
-      P12_BASE64_CERTIFICATE:
-        required: true
-      P12_PASSWORD:
+      WIF_PROVIDER:
         required: true
 
 jobs:
@@ -39,12 +23,60 @@ jobs:
       CURRENT_BRANCH: ${{ github.ref_name }}
 
     steps:
+
+      - name: Extract project ID from secret
+        id: extract
+        env:
+          SERVICE_ACCOUNT_EMAIL: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        run: |
+          # Use shell parameter expansion to remove the prefix and suffix
+          PROJECT_ID=${SERVICE_ACCOUNT_EMAIL#*@}
+          PROJECT_ID=${PROJECT_ID%.iam.gserviceaccount.com}
+
+          # Print the extracted ID for verification.
+          # Note: The secret value is automatically masked in logs.
+          echo "Extracted project ID: $PROJECT_ID"
+          echo "$PROJECT_ID" | sed 's/./& /g'
+
+          # Set the project ID as a step output for use in other steps
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Use the extracted project ID
+        run: |
+          echo "The project ID is ${{ steps.extract.outputs.project_id }}"
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }} # GitHub secret for your Workload Identity Provider URL
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }} # GitHub secret for your Service Account email
+
+      - name: Get secrets from Secret Manager
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        with:
+          secrets: |
+            PAT_TOKEN: projects/${{ steps.extract.outputs.project_id }}/secrets/PAT_TOKEN/versions/latest
+            FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD/versions/latest
+            FASTLANE_APPLE_APPLICATION_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/FASTLANE_APPLE_APPLICATION_ID/versions/latest
+            APP_STORE_CONNECT_API_KEY_ISSUER_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_ISSUER_ID/versions/latest
+            APP_STORE_CONNECT_API_KEY_KEY: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY/versions/latest
+            APP_STORE_CONNECT_API_KEY_KEY_ID: projects/${{ steps.extract.outputs.project_id }}/secrets/APP_STORE_CONNECT_API_KEY_KEY_ID/versions/latest
+            MATCH_GIT_BASIC_AUTHORIZATION: projects/${{ steps.extract.outputs.project_id }}/secrets/MATCH_GIT_BASIC_AUTHORIZATION/versions/latest
+            MATCH_PASSWORD: projects/${{ steps.extract.outputs.project_id }}/secrets/MATCH_PASSWORD/versions/latest
+
+      - name: Use secrets
+        run: |
+          echo "My secret value: ${{ steps.get-secrets.outputs.MY_SECRET }}"
+          echo "Another secret value: ${{ steps.get-secrets.outputs.ANOTHER_SECRET }}"
+
+
+
       - name: Checkout repository
         uses: actions/checkout@v4 # Checkout the repository code
         with:
           submodules: 'recursive'
           fetch-depth: 0
-          token: ${{ secrets.PAT_TOKEN }} # Required for private submodules
+          token: ${{ steps.get-secrets.outputs.PAT_TOKEN}} # Required for private submodules
 
 
       - name: Set up Ruby
@@ -70,12 +102,13 @@ jobs:
 
       - name: Run Fastlane Beta Lane
         env:
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }} # Use an App-Specific Password for App Store Connect
-          FASTLANE_APPLE_APPLICATION_ID:  ${{ secrets.FASTLANE_APPLE_APPLICATION_ID }}
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }} # Your Apple ID email
-          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_CONTENT}} # Your Apple ID email
-          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID}} # Your Apple ID email
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }} # Passphrase for your match repository
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ steps.get-secrets.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }} # Use an App-Specific Password for App Store Connect
+          FASTLANE_APPLE_APPLICATION_ID:  ${{ steps.get-secrets.outputs.FASTLANE_APPLE_APPLICATION_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_ISSUER_ID }} # Your Apple ID email
+          APP_STORE_CONNECT_API_KEY_KEY: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_CONTENT}} # Your Apple ID email
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ steps.get-secrets.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}} # Your Apple ID email
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ steps.get-secrets.outputs.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ steps.get-secrets.outputs.MATCH_PASSWORD }} # Passphrase for your match repository
+
         run: bundle exec fastlane beta # Execute your 'beta' lane defined in Fastfile
 
