@@ -25,6 +25,9 @@ jobs:
 
     steps:
 
+      - name: Checkout repository for Google
+        uses: actions/checkout@v4 # Checkout the repository code
+
       - name: Extract project ID from secret
         id: extract
         env:
