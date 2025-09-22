@@ -3,6 +3,7 @@ name: iOS parallel test workflow
 permissions:
       contents: write
       pull-requests: write
+      id-token: write
 
 on:
   workflow_call:
