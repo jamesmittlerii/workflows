@@ -41,14 +41,19 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
         run: |
-          bws secret get e9bb4989-b39f-43a3-bc4d-b361011cbb23 --output env >> $GITHUB_ENV
-          bws secret get 165e90ae-bed4-41bb-9ec0-b361011ba441 --output env >> $GITHUB_ENV
-          bws secret get 2afaa8d6-cadf-45c9-bdbb-b361011ba3f0 --output env >> $GITHUB_ENV
-          bws secret get acef0f47-efa1-4036-9584-b361011ba349 --output env >> $GITHUB_ENV
-          bws secret get e70fbaf0-de89-4a23-a70b-b361011ba3a1 --output env >> $GITHUB_ENV
-          bws secret get 7db286e9-c069-417a-b8cc-b36101279e25 --output env >> $GITHUB_ENV
+          bws secret get e9bb4989-b39f-43a3-bc4d-b361011cbb23 --output env >> $GITHUB_OUTPUT
+          bws secret get 165e90ae-bed4-41bb-9ec0-b361011ba441 --output env >> $GITHUB_OUTPUT
+          bws secret get 2afaa8d6-cadf-45c9-bdbb-b361011ba3f0 --output env >> $GITHUB_OUTPUT
+          bws secret get acef0f47-efa1-4036-9584-b361011ba349 --output env >> $GITHUB_OUTPUT
+          bws secret get e70fbaf0-de89-4a23-a70b-b361011ba3a1 --output env >> $GITHUB_OUTPUT
+          bws secret get 7db286e9-c069-417a-b8cc-b36101279e25 --output env >> $GITHUB_OUTPUT
       - name: Add mask
         run: | 
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID="${{ steps.generate.outputs.MATCH_PASSWORD}}"
+          APP_STORE_CONNECT_API_KEY_KEY_ID="${{ steps.generate.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}}"
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD="${{ steps.generate.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD}}"
+          MATCH_GIT_BASIC_AUTHORIZATION="${{ steps.generate.outputs.MATCH_GIT_BASIC_AUTHORIZATION}}"
+          MATCH_PASSWORD="${{ steps.generate.outputs.MATCH_PASSWORD }}"
           echo "::add-mask::$APP_STORE_CONNECT_API_KEY_ISSUER_ID"
           echo "::add-mask::$APP_STORE_CONNECT_API_KEY_KEY"
           echo "::add-mask::$APP_STORE_CONNECT_API_KEY_KEY_ID"
@@ -56,6 +61,7 @@ jobs:
           echo "::add-mask::$MATCH_GIT_BASIC_AUTHORIZATION"
           echo "::add-mask::$MATCH_PASSWORD"
           echo -n $MATCH_GIT_BASIC_AUTHORIZATION | md5sum
+          echo -n $APP_STORE_CONNECT_API_KEY_ISSUER_ID| md5sum
      
     
       - name: Set up Ruby
@@ -81,6 +87,10 @@ jobs:
 
       - name: Run Fastlane Beta Lane
         run: bundle exec fastlane beta # Execute your 'beta' lane defined in Fastfile
-#        env:
-#         MATCH_GIT_BASIC_AUTHORIZATION: ${{ steps.generate_value_step.outputs.MATCH_GIT_BASIC_AUTHORIZATION }}
+        env:
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ steps.generate_value_step.outputs.APP_STORE_CONNECT_API_KEY_ISSUER_ID}}
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ steps.generate_value_step.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}}
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ steps.generate_value_step.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD}}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ steps.generate_value_step.outputs.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ steps.generate_value_step.outputs.MATCH_PASSWORD}}
 
