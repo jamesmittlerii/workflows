@@ -1,0 +1,179 @@
+name: iOS parallel test workflow
+
+permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+
+on:
+  workflow_call:
+    secrets:
+      BW_ACCESS_TOKEN:
+        required: true
+      PAT_TOKEN:
+        required: true
+
+jobs:
+
+  deploy-beta:
+#    if: github.ref == 'refs/heads/testing'
+    name: Deploy to Test Flight
+    runs-on: macos-latest # Use a macOS runner for iOS builds
+    needs: test
+    env:
+      CURRENT_BRANCH: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Checkout the repository code
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }} # Required for private submodules
+  
+      - name: Install Bitwarden Secrets Manager CLI (bws)
+        run: |
+          BWS_VERSION="1.0.0" # adjust to current release
+          curl -L -o bws.zip "https://github.com/bitwarden/sdk/releases/download/bws-v${BWS_VERSION}/bws-aarch64-apple-darwin-${BWS_VERSION}.zip"
+          unzip -q bws.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/bws
+          bws --version
+#      - name: Get Secrets via bws
+#        env:
+#          BWS_ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
+#        run: |
+#          bws secret get e9bb4989-b39f-43a3-bc4d-b361011cbb23 --output env >> $GITHUB_OUTPUT
+#          bws secret get 165e90ae-bed4-41bb-9ec0-b361011ba441 --output env >> $GITHUB_OUTPUT
+#          bws secret get 2afaa8d6-cadf-45c9-bdbb-b361011ba3f0 --output env >> $GITHUB_OUTPUT
+#          bws secret get acef0f47-efa1-4036-9584-b361011ba349 --output env >> $GITHUB_OUTPUT
+#          bws secret get e70fbaf0-de89-4a23-a70b-b361011ba3a1 --output env >> $GITHUB_OUTPUT
+#          bws secret get 7db286e9-c069-417a-b8cc-b36101279e25 --output env >> $GITHUB_OUTPUT
+#      - name: Add mask
+#        run: | 
+#          APP_STORE_CONNECT_API_KEY_ISSUER_ID="${{ steps.generate.outputs.MATCH_PASSWORD}}"
+#          APP_STORE_CONNECT_API_KEY_KEY_ID="${{ steps.generate.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}}"
+#          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD="${{ steps.generate.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD}}"
+#          MATCH_GIT_BASIC_AUTHORIZATION="${{ steps.generate.outputs.MATCH_GIT_BASIC_AUTHORIZATION}}"
+#          MATCH_PASSWORD="${{ steps.generate.outputs.MATCH_PASSWORD }}"
+#          echo "::add-mask::$APP_STORE_CONNECT_API_KEY_ISSUER_ID"
+#          echo "::add-mask::$APP_STORE_CONNECT_API_KEY_KEY"
+#          echo "::add-mask::$APP_STORE_CONNECT_API_KEY_KEY_ID"
+#          echo "::add-mask::$FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD"
+#          echo "::add-mask::$MATCH_GIT_BASIC_AUTHORIZATION"
+#          echo "::add-mask::$MATCH_PASSWORD"
+#          echo -n $MATCH_GIT_BASIC_AUTHORIZATION | md5sum
+#          echo -n $APP_STORE_CONNECT_API_KEY_ISSUER_ID| md5sum
+     
+    
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2' # Specify your Ruby version
+          bundler-cache: true # Install Gemfile dependencies with bundler
+
+      - name: Install Fastlane
+        run: bundle install
+ 
+      - name: Set PROJECT_NAME environment variable
+        id: set_project_name # Add an ID to the step to create an output variable
+        run: |
+          # Find the .xcodeproj file, remove the .xcodeproj extension, and assign it to the variable.
+          PROJECT_NAME=$(basename *.xcodeproj .xcodeproj)
+          
+          # Write the variable to the GITHUB_ENV file so it's available to subsequent steps.
+          echo "PROJECT_NAME=$PROJECT_NAME" >> "$GITHUB_ENV"
+          
+          # Write the variable to the GITHUB_OUTPUT file so it can be used by other jobs.
+          echo "project_name=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Run Fastlane Beta Lane
+        run: bws run --project-id 9c8584c2-a53a-45fb-a276-b3610119586a -- bundle exec fastlane beta # Execute your 'beta' lane defined in Fastfile
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
+#        env:
+#          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ steps.generate_value_step.outputs.APP_STORE_CONNECT_API_KEY_ISSUER_ID}}
+#          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ steps.generate_value_step.outputs.APP_STORE_CONNECT_API_KEY_KEY_ID}}
+#          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ steps.generate_value_step.outputs.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD}}
+#          MATCH_GIT_BASIC_AUTHORIZATION: ${{ steps.generate_value_step.outputs.MATCH_GIT_BASIC_AUTHORIZATION }}
+#          MATCH_PASSWORD: ${{ steps.generate_value_step.outputs.MATCH_PASSWORD}}
+
+  build:
+    name: Build default scheme
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set Default Scheme
+        id: set_scheme
+        run: |
+          scheme_list=$(xcodebuild -list -json | tr -d "\n")
+          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
+          echo "scheme=$default" >> $GITHUB_OUTPUT
+#      - name: Import Apple Code Signing Certificates
+#        uses: apple-actions/import-codesign-certs@v3
+#        with:
+#          p12-file-base64: ${{ secrets.P12_BASE64_CERTIFICATE }}
+#          p12-password: ${{ secrets.P12_PASSWORD }}
+      - name: Build for Testing
+        env:
+          scheme: ${{ steps.set_scheme.outputs.scheme }}
+          platform: 'iOS Simulator'
+        run: |
+          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
+          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device" -derivedDataPath './DerivedData'
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-app
+          path: DerivedData/Build/Products/
+          retention-days: 1
+
+
+  test:
+#    if: false
+    needs: build
+    name: Test on ${{ matrix.device }}
+    runs-on: macos-latest
+#    timeout-minutes: 30
+    strategy:
+      matrix:
+        #device: [ 'Any iOS Simulator Device' ]
+        device: [ 'iPhone 16 Pro', 'iPad Pro 13-inch (M4)' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set Default Scheme
+        id: set_scheme
+        run: |
+          scheme_list=$(xcodebuild -list -json | tr -d "\n")
+          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
+          echo "scheme=$default" >> $GITHUB_OUTPUT
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: built-app
+          path: DerivedData/Build/Products/
+      - name: Display structure of downloaded files
+        run: ls -R DerivedData/Build/Products/
+      - name: Run Tests with Retry
+        uses: nick-fields/retry@v3
+        with:
+           max_attempts: 3 # The maximum number of times to run the command
+           timeout_minutes: 30 # How long to wait before timing out each attempt
+           command: |
+              scheme="${{ steps.set_scheme.outputs.scheme }}"
+              platform="iOS Simulator"
+              device_name="${{ matrix.device }}"
+              if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then
+                filetype_parameter="workspace"
+                file_to_build="`ls -A | grep -i \\.xcworkspace\$`"
+              else
+                filetype_parameter="project"
+                file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
+              fi
+              file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+              xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device_name" -derivedDataPath 'DerivedData'
+
+
