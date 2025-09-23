@@ -49,6 +49,7 @@ jobs:
           bws secret get 7db286e9-c069-417a-b8cc-b36101279e25 --output env >> $GITHUB_ENV
       - name: Add mask
         run: | 
+          echo "::add-mask::$APP_STORE_CONNECT_API_KEY_ISSUER_ID"
           echo "::add-mask::$APP_STORE_CONNECT_API_KEY_KEY"
           echo "::add-mask::$APP_STORE_CONNECT_API_KEY_KEY_ID"
           echo "::add-mask::$FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD"
