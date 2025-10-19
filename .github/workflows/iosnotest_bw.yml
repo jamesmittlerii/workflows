@@ -18,7 +18,7 @@ jobs:
   deploy-beta:
 #    if: github.ref == 'refs/heads/testing'
     name: Deploy to Test Flight
-    runs-on: macos-latest # Use a macOS runner for iOS builds
+    runs-on: macos-26 # Use a macOS runner for iOS builds
     env:
       CURRENT_BRANCH: ${{ github.ref_name }}
 
@@ -29,7 +29,10 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }} # Required for private submodules
-  
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+      
       - name: Install Bitwarden Secrets Manager CLI (bws)
         run: |
           BWS_VERSION="1.0.0" # adjust to current release
