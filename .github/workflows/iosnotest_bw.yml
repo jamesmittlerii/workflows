@@ -19,6 +19,7 @@ jobs:
 #    if: github.ref == 'refs/heads/testing'
     name: Deploy to Test Flight
     runs-on: macos-26 # Use a macOS runner for iOS builds
+    timeout-minutes: 30
     env:
       CURRENT_BRANCH: ${{ github.ref_name }}
 
