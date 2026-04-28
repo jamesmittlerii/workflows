@@ -33,6 +33,12 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }} # Required for private submodules
 
+      - name: Sync to latest branch head
+        run: |
+          git fetch origin "${{ github.ref_name }}"
+          git checkout "${{ github.ref_name }}"
+          git reset --hard "origin/${{ github.ref_name }}"
+
       - name: Select Xcode 26
         run: /usr/bin/xcodebuild -version
 
