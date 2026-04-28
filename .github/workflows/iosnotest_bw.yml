@@ -23,6 +23,7 @@ jobs:
     env:
       CURRENT_BRANCH: ${{ github.ref_name }}
       APP_ID: ${{ vars.APP_ID }}
+      BWS_VERSION: "1.0.0"
 
     steps:
       - name: Checkout repository
@@ -34,14 +35,28 @@ jobs:
 
       - name: Select Xcode 26
         run: /usr/bin/xcodebuild -version
-      
-      - name: Install Bitwarden Secrets Manager CLI (bws)
+
+      - name: Prepare local bin path
         run: |
-          BWS_VERSION="1.0.0" # adjust to current release
-          curl -L -o bws.zip "https://github.com/bitwarden/sdk/releases/download/bws-v${BWS_VERSION}/bws-aarch64-apple-darwin-${BWS_VERSION}.zip"
-          unzip -q bws.zip -d /usr/local/bin
-          chmod +x /usr/local/bin/bws
-          bws --version
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Bitwarden Secrets Manager CLI (bws)
+        id: cache-bws
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/bws
+          key: bws-${{ runner.os }}-${{ runner.arch }}-${{ env.BWS_VERSION }}
+
+      - name: Install Bitwarden Secrets Manager CLI (bws)
+        if: steps.cache-bws.outputs.cache-hit != 'true'
+        run: |
+          curl -L -o bws.zip "https://github.com/bitwarden/sdk/releases/download/bws-v${{ env.BWS_VERSION }}/bws-aarch64-apple-darwin-${{ env.BWS_VERSION }}.zip"
+          unzip -q bws.zip -d "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/bws"
+
+      - name: Verify bws install
+        run: bws --version
 #      - name: Get Secrets via bws
 #        env:
 #          BWS_ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
