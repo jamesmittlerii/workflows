@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4 # Checkout the repository code
+        uses: actions/checkout@v5 # Checkout the repository code
         with:
           submodules: 'recursive'
           fetch-depth: 0
@@ -49,7 +49,7 @@ jobs:
 
       - name: Cache Bitwarden Secrets Manager CLI (bws)
         id: cache-bws
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.local/bin/bws
           key: bws-${{ runner.os }}-${{ runner.arch }}-${{ env.BWS_VERSION }}
